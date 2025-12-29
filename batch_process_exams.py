@@ -12,6 +12,7 @@ from typing import Dict, List
 from datetime import datetime
 
 from ocr_pipeline import ExamOCR, OCRConfig, ModelType
+from posttraitement_du_texte_examen import full_ocr_postprocess_SAFE
 from qa_extractor import QASegmenter
 from grader import OpenSourceLLMGrader
 
@@ -152,10 +153,20 @@ class BatchExamProcessor:
             return {"status": "failed", "error": "OCR failed"}
         
         logger.info(f"  [1/4] ✅ OCR done - {len(ocr_result.full_text)} chars")
-        
-        # Étape 2: Segmentation Q/A
+
+        # Post-traitement OCR (local corrections + optional LLM per-line)
+        logger.info(f"  [1.1/4] Post-processing OCR text...")
+        use_llm = bool(self.api_key)
+        processed_text = full_ocr_postprocess_SAFE(
+            ocr_result.full_text,
+            use_llm=use_llm,
+            hf_api_token=self.api_key,
+            model=self.model_name or "mistralai/Mistral-7B-Instruct-v0.3"
+        )
+
+        # Étape 2: Segmentation Q/A (use post-processed text)
         logger.info(f"  [2/4] Segmenting Q/A...")
-        qa_dict = self.qa_segmenter.segment(ocr_result.full_text)
+        qa_dict = self.qa_segmenter.segment(processed_text)
         qa_text = self.qa_segmenter.format_qa_pairs(qa_dict)
         
         logger.info(f"  [3/4] ✅ Found {len(qa_dict['questions'])} Q, {len(qa_dict['answers'])} A")
@@ -171,7 +182,7 @@ class BatchExamProcessor:
         output_dir = self.output_root / subject_name / student_id
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        self._save_student_results(output_dir, ocr_result, qa_dict, grade_result)
+        self._save_student_results(output_dir, ocr_result, qa_dict, grade_result, processed_text)
         logger.info(f"  [4/4] ✅ Saved to {output_dir}")
         
         return {
@@ -196,12 +207,17 @@ class BatchExamProcessor:
         return [str(img) for img in sorted(set(images))]
     
     def _save_student_results(self, output_dir: Path, ocr_result, 
-                             qa_dict: Dict, grade_result: Dict):
+                             qa_dict: Dict, grade_result: Dict, processed_text: str = None):
         """Sauvegarde les résultats d'un étudiant"""
         
         # 1. Texte OCR brut
         with open(output_dir / "01_ocr_raw.txt", "w", encoding="utf-8") as f:
             f.write(ocr_result.full_text)
+
+        # 1b. Texte OCR post-traité (si fournie)
+        if processed_text is not None:
+            with open(output_dir / "01_ocr_postprocessed.txt", "w", encoding="utf-8") as f:
+                f.write(processed_text)
         
         # 2. Q/A formatées
         with open(output_dir / "02_questions_answers.txt", "w", encoding="utf-8") as f:

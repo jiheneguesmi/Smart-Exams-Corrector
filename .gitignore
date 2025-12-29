@@ -1,0 +1,65 @@
+### Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# OneDrive
+~$*
+
+# Data and outputs (do NOT push student data or large outputs)
+data/
+results/
+ocr_output/
+exam_ready_for_scoring.txt
+
+# Model weights / caches
+*.pt
+*.pth
+*.bin
+models/
+
+# Temporary files
+*.tmp
+*.bak
+
+# Secrets
+.env
+*.key
+*.pem
+secrets.yaml
+credentials.json
+
+# Hugging Face/hub cache and tokens
+hf_* 
+~huggingface/
+
+# Colab files
+*.ipynb
